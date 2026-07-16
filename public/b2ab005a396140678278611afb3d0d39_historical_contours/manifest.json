@@ -1,0 +1,50 @@
+{
+  "regionName": "Samar Island Bounding Box",
+  "boundingPolygon": [
+    [
+      11.15,
+      124.15
+    ],
+    [
+      12.6,
+      125.8
+    ]
+  ],
+  "images": [
+    {
+      "filename": "1hr_20250922_2100_wf0gecu0b_rainfall_contour.png",
+      "jobId": "wf0gecu0b",
+      "durationHours": 1,
+      "periodStart": "2025-09-22T20:00:00Z",
+      "periodEnd": "2025-09-22T21:00:00Z"
+    },
+    {
+      "filename": "3hr_20250922_2100_wf0gecu0b_rainfall_contour.png",
+      "jobId": "wf0gecu0b",
+      "durationHours": 3,
+      "periodStart": "2025-09-22T18:00:00Z",
+      "periodEnd": "2025-09-22T21:00:00Z"
+    },
+    {
+      "filename": "6hr_20250922_2100_wf0gecu0b_rainfall_contour.png",
+      "jobId": "wf0gecu0b",
+      "durationHours": 6,
+      "periodStart": "2025-09-22T15:00:00Z",
+      "periodEnd": "2025-09-22T21:00:00Z"
+    },
+    {
+      "filename": "12hr_20250922_2100_wf0gecu0b_rainfall_contour.png",
+      "jobId": "wf0gecu0b",
+      "durationHours": 12,
+      "periodStart": "2025-09-22T09:00:00Z",
+      "periodEnd": "2025-09-22T21:00:00Z"
+    },
+    {
+      "filename": "24hr_20250922_2100_wf0gecu0b_rainfall_contour.png",
+      "jobId": "wf0gecu0b",
+      "durationHours": 24,
+      "periodStart": "2025-09-21T21:00:00Z",
+      "periodEnd": "2025-09-22T21:00:00Z"
+    }
+  ]
+}
