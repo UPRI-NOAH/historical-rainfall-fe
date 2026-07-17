@@ -26,7 +26,7 @@ async function handleGenerateImage(
   startDate: Date,
   endDate: Date,
   sources: string[],
-  hours: string[]
+  frequency: number
 ) {
   controller.value = new AbortController();
   loading.value = true;
@@ -36,7 +36,7 @@ async function handleGenerateImage(
       startDate,
       endDate,
       sources,
-      hours,
+      frequency,
       controller.value.signal
     );
     images.value = result.mapImages;

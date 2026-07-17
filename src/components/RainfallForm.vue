@@ -2,7 +2,15 @@
 import { ref, defineProps, defineEmits, computed } from "vue";
 import { Icon } from "@iconify/vue";
 import { VueDatePicker } from "@vuepic/vue-datepicker";
-import { CheckboxIndicator, CheckboxRoot, CheckboxGroupRoot } from "reka-ui";
+import {
+  CheckboxIndicator,
+  CheckboxRoot,
+  CheckboxGroupRoot,
+  SliderRange,
+  SliderRoot,
+  SliderThumb,
+  SliderTrack,
+} from "reka-ui";
 import "@vuepic/vue-datepicker/dist/main.css";
 import FileTable from "./FileTable.vue";
 import type { MapImage } from "../types";
@@ -17,34 +25,70 @@ const emit = defineEmits<{
     startDate: Date,
     endDate: Date,
     sources: string[],
-    hours: string[]
+    frequency: number
   ): void;
   (e: "imageSelected", image: MapImage): void;
   (e: "cancelGenerate"): void;
   (e: "downloadZip"): void;
 }>();
 
-const dates = ref();
-const sources = ref([]);
-const durations = ref([]);
-const expanded = ref(false); // mobile bottom-sheet open/closed state
+const dates = ref<Date[]>();
+const sources = ref<string[]>([]);
+const frequencyIdx = ref<number[]>([0]);
+const expanded = ref<boolean>(false); // mobile bottom-sheet open/closed state
 
 function handleGenerateImage(
   dates: Date[],
   sources: string[],
-  hours: string[]
+  frequency: number
 ) {
   const startDate = dates[0];
   const endDate = dates[1];
-  emit("generateImage", startDate, endDate, sources, hours);
+  console.log("FREQ: ", frequency);
+  emit("generateImage", startDate, endDate, sources, frequency);
 }
+
+const lengthOfInterval = computed(() => {
+  if (
+    dates.value &&
+    dates.value[0] &&
+    dates.value[1] &&
+    dates.value.length == 2
+  ) {
+    const d0 = new Date(dates.value[0].getTime());
+    const d1 = new Date(dates.value[1].getTime());
+    d0.setMinutes(0, 0, 0);
+    d1.setMinutes(0, 0, 0);
+
+    const diffMs = Math.abs(d1.valueOf() - d0.valueOf());
+    return diffMs / (1000 * 60 * 60);
+  }
+
+  return -1;
+});
+
+const frequencyOptions = computed(() => {
+  if (lengthOfInterval.value <= 0) return [];
+  const hours = [1, 3, 6, 12, 24];
+  return hours.filter((val) => lengthOfInterval.value % val == 0);
+});
+
+const frequency = computed(() => {
+  if (frequencyOptions.value.length > 0) {
+    return frequencyOptions.value[frequencyIdx.value[0]];
+  }
+
+  return null;
+});
 
 const canGenerate = computed(() => {
   return (
     dates.value != null &&
     dates.value.length == 2 &&
+    dates.value[0] &&
+    dates.value[1] &&
     sources.value.length > 0 &&
-    durations.value.length > 0
+    frequency.value
   );
 });
 
@@ -95,11 +139,15 @@ const canDownloadZip = computed(() => {
           class="w-full flex flex-row items-start gap-7 text-[0.8rem]"
         >
           <div
-            v-for="source in ['jaxa', 'pagasa', 'pagasa-pmt']"
+            v-for="source in [
+              { label: 'JAXA', value: 'jaxa' },
+              { label: 'PAGASA', value: 'pagasa' },
+              { label: 'Pasig-Marikina-Tullahan', value: 'pmt' },
+            ]"
             class="flex flex-row gap-2 items-center"
           >
             <CheckboxRoot
-              :value="source"
+              :value="source.value"
               class="hover:bg-stone-50 flex h-5 w-5 appearance-none items-center justify-center rounded-md bg-white shadow-sm border border-[#c2c2c2] outline-none"
             >
               <CheckboxIndicator
@@ -111,38 +159,33 @@ const canDownloadZip = computed(() => {
                 />
               </CheckboxIndicator>
             </CheckboxRoot>
-            <span class="uppercase">{{ source }}</span>
+            <span class="uppercase">{{ source.label }}</span>
           </div>
         </CheckboxGroupRoot>
       </div>
 
       <div class="w-full flex flex-col items-start gap-2">
-        <h3 class="text-black">Duration</h3>
+        <h3 class="text-black">Frequency</h3>
         <div class="w-full h-[1px] bg-[#c2c2c2]" />
-        <CheckboxGroupRoot
-          v-model="durations"
-          class="w-full flex flex-row items-start gap-7 text-[0.8rem]"
+        <SliderRoot
+          v-model="frequencyIdx"
+          class="relative flex items-center select-none touch-none w-full h-5"
+          :max="frequencyOptions.length - 1"
+          :step="1"
+          :disabled="!(dates && dates.length == 2 && lengthOfInterval > 0)"
         >
-          <div
-            v-for="duration in ['1', '3', '6', '12', '24']"
-            class="flex flex-row gap-2 items-center"
-          >
-            <CheckboxRoot
-              :value="duration"
-              class="hover:bg-stone-50 flex h-5 w-5 appearance-none items-center justify-center rounded-md bg-white shadow-sm border border-[#c2c2c2] outline-none"
-            >
-              <CheckboxIndicator
-                class="bg-[#1F57FF] h-full w-full rounded flex items-center justify-center"
-              >
-                <Icon
-                  icon="radix-icons:check"
-                  class="h-5 w-5 text-white rounded"
-                />
-              </CheckboxIndicator>
-            </CheckboxRoot>
-            <span>{{ duration }} hr</span>
-          </div>
-        </CheckboxGroupRoot>
+          <SliderTrack class="bg-stone-500/30 relative grow rounded-full h-2">
+            <SliderRange class="absolute bg-grass8 rounded-full h-full" />
+          </SliderTrack>
+          <SliderThumb
+            class="block w-6 h-6 bg-white rounded-full hover:bg-stone-50 shadow-sm focus:outline-none focus:shadow-[0_0_0_2px] focus:shadow-grass9"
+            aria-label="Volume"
+          />
+        </SliderRoot>
+        <div class="flex flex-col items-start">
+          <span> Hours Between: {{ lengthOfInterval }} </span>
+          <span> Value: {{ frequency }} </span>
+        </div>
       </div>
 
       <button
@@ -151,7 +194,7 @@ const canDownloadZip = computed(() => {
         @click="
           generatingImage
             ? emit('cancelGenerate')
-            : handleGenerateImage(dates, sources, durations)
+            : handleGenerateImage(dates, sources, frequency)
         "
         :disabled="!generatingImage && !canGenerate"
       >

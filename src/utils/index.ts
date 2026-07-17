@@ -45,7 +45,7 @@ export async function loadImages(
   startDate: Date,
   endDate: Date,
   sources: string[],
-  hours: string[],
+  frequency: number,
   signal: AbortSignal
 ) {
   const zipBlob = await generateImages(
@@ -53,7 +53,7 @@ export async function loadImages(
     startDate,
     endDate,
     sources,
-    hours,
+    frequency,
     signal
   );
 

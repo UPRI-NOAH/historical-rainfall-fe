@@ -17,6 +17,8 @@
     "fflate": "^0.8.3",
     "leaflet": "^1.9.4",
     "leaflet-draw": "^1.0.4",
+    "proj4": "^2.20.9",
+    "proj4leaflet": "^1.0.2",
     "reka-ui": "^2.10.1",
     "vue": "^3.5.39"
   },

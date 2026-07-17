@@ -8,7 +8,7 @@ export async function generateImages(
   startDate: Date,
   endDate: Date,
   sources: string[],
-  hours: string[],
+  frequency: number,
   signal: AbortSignal
 ): Promise<Blob> {
   startDate.setMinutes(0, 0, 0);
@@ -18,14 +18,9 @@ export async function generateImages(
     throw new Error("Start date is later than end date.");
   }
 
-  const possibleSources = ["jaxa", "pagasa", "pagasa-pmt"];
+  const possibleSources = ["jaxa", "pagasa", "pmt"];
   if (!sources.every((s) => possibleSources.includes(s))) {
     throw new Error("Invalid source passed.");
-  }
-
-  const possibleHours = ["1", "3", "6", "12", "24"];
-  if (!hours.every((s) => possibleHours.includes(s))) {
-    throw new Error("Invalid hours passed.");
   }
 
   const formData = new FormData();
@@ -43,7 +38,7 @@ export async function generateImages(
   formData.append("start_str", format(startDate, "yyyy/MM/dd HH:mm"));
   formData.append("end_str", format(endDate, "yyyy/MM/dd HH:mm"));
   formData.append("sources", sources.join(","));
-  formData.append("hours", hours.join(","));
+  formData.append("frequency", frequency.toString());
 
   // Start job
   const startResponse = await fetch(
