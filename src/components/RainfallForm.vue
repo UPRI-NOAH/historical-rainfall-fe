@@ -14,6 +14,7 @@ import {
 import "@vuepic/vue-datepicker/dist/main.css";
 import FileTable from "./FileTable.vue";
 import type { MapImage } from "../types";
+import { generation } from "../store";
 
 const props = defineProps<{
   files: MapImage[];
@@ -70,7 +71,9 @@ const lengthOfInterval = computed(() => {
 const frequencyOptions = computed(() => {
   if (lengthOfInterval.value <= 0) return [];
   const hours = [1, 3, 6, 12, 24];
-  return hours.filter((val) => lengthOfInterval.value % val == 0);
+  const res = hours.filter((val) => lengthOfInterval.value % val == 0);
+  console.log(res);
+  return res;
 });
 
 const frequency = computed(() => {
@@ -188,23 +191,34 @@ const canDownloadZip = computed(() => {
         </div>
       </div>
 
-      <button
-        class="w-full flex items-center justify-center gap-2 text-center text-[0.8rem] text-white font-bold rounded border-none transition hover:brightness-90 hover:cursor-pointer py-0.5 disabled:bg-[#a0a0a0] disabled:cursor-not-allowed disabled:hover:brightness-100"
-        :class="generatingImage ? 'bg-[#E23B3B]' : 'bg-[#1F57FF]'"
-        @click="
-          generatingImage
-            ? emit('cancelGenerate')
-            : handleGenerateImage(dates, sources, frequency)
-        "
-        :disabled="!generatingImage && !canGenerate"
-      >
-        <Icon
-          v-if="generatingImage"
-          icon="radix-icons:reload"
-          class="h-4 w-4 animate-spin"
-        />
-        {{ generatingImage ? "Cancel" : "Generate Images" }}
-      </button>
+      <div class="w-full h-fit flex flex-col items-center">
+        <button
+          class="w-full flex items-center justify-center gap-2 text-center text-[0.8rem] text-white font-bold rounded border-none transition hover:brightness-90 hover:cursor-pointer py-0.5 disabled:bg-[#a0a0a0] disabled:cursor-not-allowed disabled:hover:brightness-100 relative overflow-hidden"
+          :class="generatingImage ? 'bg-[#E23B3B]' : 'bg-[#1F57FF]'"
+          @click="
+            generatingImage
+              ? emit('cancelGenerate')
+              : handleGenerateImage(dates, sources, frequency)
+          "
+          :disabled="!generatingImage && !canGenerate"
+        >
+          <Icon
+            v-if="generatingImage"
+            icon="radix-icons:reload"
+            class="h-4 w-4 animate-spin"
+          />
+          {{ generatingImage ? "Cancel" : "Generate Images" }}
+
+          <div
+            v-if="generatingImage"
+            class="absolute h-full bg-black right-0 opacity-50 transition-[width] duration-300 ease-linear"
+            :style="{ width: 100 - generation.progress + '%' }"
+          />
+        </button>
+        <span v-if="generatingImage" class="text-[0.75rem]">{{
+          generation.status
+        }}</span>
+      </div>
 
       <div class="w-full flex flex-col items-start gap-2 max-w-inherit">
         <h3 class="text-black">Last Generated Images</h3>

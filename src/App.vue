@@ -2,7 +2,7 @@
 import { ref, shallowRef } from "vue";
 import HomePage from "./components/HomePage.vue";
 import RainfallForm from "./components/RainfallForm.vue";
-import { loadImages } from "./utils";
+import { loadImages, sleep } from "./utils";
 import noahLogo from "./assets/noah-logo-high-res.png";
 import type { MapImage } from "./types";
 import type { Feature, Polygon } from "geojson";

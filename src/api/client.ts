@@ -1,16 +1,15 @@
 import type { Feature, Polygon } from "geojson";
 import { format } from "date-fns";
+import type { WorkflowStatusResponse } from "../types";
 
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
+// takes in a vueRef that it can update
 export async function generateImages(
   boundingPolygon: Feature<Polygon> | null,
   startDate: Date,
   endDate: Date,
   sources: string[],
-  frequency: number,
-  signal: AbortSignal
-): Promise<Blob> {
+  frequency: number
+): Promise<string> {
   startDate.setMinutes(0, 0, 0);
   endDate.setMinutes(0, 0, 0);
 
@@ -53,30 +52,32 @@ export async function generateImages(
     throw new Error("Failed to start generation.");
   }
 
-  const { task_id } = (await startResponse.json()) as { task_id: string };
+  const { workflow_id } = (await startResponse.json()) as {
+    workflow_id: string;
+  };
 
-  // Poll until finished
-  while (true) {
-    await sleep(2000);
+  return workflow_id;
+}
 
-    const statusResponse = await fetch(
-      `http://localhost:8000/api/rainfall/historical-contours/${task_id}/`,
-      {
-        signal: signal,
-      }
-    );
-
-    if (!statusResponse.ok) {
-      throw new Error("Failed to check task status.");
+export async function retrieveImages(workflow_id: string, signal: AbortSignal) {
+  const statusResponse = await fetch(
+    `http://localhost:8000/api/rainfall/historical-contours/${workflow_id}/`,
+    {
+      signal: signal,
     }
+  );
 
-    if (statusResponse.status === 200) {
-      return statusResponse.blob();
-    } else if (statusResponse.status === 202) {
-      console.log("Still polling for new images.");
-      continue;
-    } else {
-      throw new Error("Generation failed.");
-    }
+  if (!statusResponse.ok) {
+    throw new Error("Failed to check task status.");
+  }
+
+  if (statusResponse.status === 200) {
+    const blob = await statusResponse.blob();
+    return { type: "complete", data: blob };
+  } else if (statusResponse.status === 202) {
+    const json: WorkflowStatusResponse = await statusResponse.json();
+    return { type: "pending", data: json };
+  } else {
+    throw new Error("Generation failed.");
   }
 }

@@ -25,3 +25,9 @@ export interface ImageManifest {
   boundingPolygon: [[number, number], [number, number]];
   images: ImageManifestEntry[];
 }
+
+export interface WorkflowStatusResponse {
+  status: string;
+  timestamp: string; // or number, depending on how workflow.status_at serializes
+  progress: number; // it's "100" as a string here, not a number
+}

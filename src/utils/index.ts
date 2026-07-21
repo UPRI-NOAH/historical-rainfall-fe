@@ -1,6 +1,7 @@
 import { unzip } from "fflate";
-import { generateImages } from "../api/client";
-import type { ImageManifest, MapImage } from "../types";
+import { generateImages, retrieveImages } from "../api/client";
+import { generation } from "../store";
+import type { ImageManifest, MapImage, WorkflowStatusResponse } from "../types";
 import type { Feature, Polygon } from "geojson";
 
 export function unzipToFiles(
@@ -48,19 +49,37 @@ export async function loadImages(
   frequency: number,
   signal: AbortSignal
 ) {
-  const zipBlob = await generateImages(
+  generation.status = "Starting fetch call";
+  const workflow_id = await generateImages(
     boundingPolygon,
     startDate,
     endDate,
     sources,
-    frequency,
-    signal
+    frequency
   );
+  let zipBlob;
+  while (true) {
+    sleep(500);
+
+    const { type, data } = await retrieveImages(workflow_id, signal);
+
+    if (type == "complete") {
+      zipBlob = data as Blob;
+      break;
+    }
+
+    generation.status = (data as WorkflowStatusResponse).status;
+    generation.progress = (data as WorkflowStatusResponse).progress;
+  }
+
+  generation.status = "Parsing data";
 
   const buffer = new Uint8Array(await zipBlob.arrayBuffer());
   const unzipped = await unzipToFiles(buffer);
-  console.log(unzipped);
   const mapImages = await extractImagesFromManifest(unzipped);
 
   return { mapImages, zipBlob };
 }
+
+export const sleep = (ms: number) =>
+  new Promise((resolve) => setTimeout(resolve, ms));
