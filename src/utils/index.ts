@@ -55,9 +55,11 @@ export async function loadImages(
     startDate,
     endDate,
     sources,
-    frequency
+    frequency,
+    signal
   );
   let zipBlob;
+  generation.workflow_id = workflow_id;
   while (true) {
     sleep(500);
 

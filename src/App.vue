@@ -3,6 +3,8 @@ import { ref, shallowRef } from "vue";
 import HomePage from "./components/HomePage.vue";
 import RainfallForm from "./components/RainfallForm.vue";
 import { loadImages, sleep } from "./utils";
+import { generation } from "./store";
+import { cancelImages } from "./api/client";
 import noahLogo from "./assets/noah-logo-high-res.png";
 import type { MapImage } from "./types";
 import type { Feature, Polygon } from "geojson";
@@ -49,10 +51,20 @@ async function handleGenerateImage(
 }
 
 async function handleCancelGenerateImage() {
-  if (loading.value && controller.value) {
-    controller.value.abort();
-    console.log("cancelling request");
+  if (!loading.value || !controller.value) return;
+
+  // Snapshot the values we care about BEFORE any await —
+  // so a concurrent generate() can't swap them out from under us
+  const activeController = controller.value;
+  const activeWorkflowId = generation.workflow_id;
+
+  activeController.abort();
+
+  if (activeWorkflowId) {
+    await cancelImages(activeWorkflowId);
   }
+
+  loading.value = true;
 }
 
 function handleDownloadZip() {

@@ -8,7 +8,8 @@ export async function generateImages(
   startDate: Date,
   endDate: Date,
   sources: string[],
-  frequency: number
+  frequency: number,
+  signal: AbortSignal
 ): Promise<string> {
   startDate.setMinutes(0, 0, 0);
   endDate.setMinutes(0, 0, 0);
@@ -45,6 +46,7 @@ export async function generateImages(
     {
       method: "POST",
       body: formData,
+      signal: signal,
     }
   );
 
@@ -80,4 +82,20 @@ export async function retrieveImages(workflow_id: string, signal: AbortSignal) {
   } else {
     throw new Error("Generation failed.");
   }
+}
+
+export async function cancelImages(workflow_id: string) {
+  console.log("WORKFLOW ID: ", workflow_id);
+  const response = await fetch(
+    `http://localhost:8000/api/rainfall/historical-contours/${workflow_id}/`,
+    {
+      method: "DELETE",
+    }
+  );
+
+  if (response.status === 200) {
+    console.log("Successful cancellation!");
+  }
+
+  throw new Error("Failed to cancel generation.");
 }
