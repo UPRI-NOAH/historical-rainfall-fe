@@ -1,24 +1,23 @@
 <script setup lang="ts">
-import { ref, defineProps, defineEmits, computed } from "vue";
+import { ref, computed } from "vue";
 import { Icon } from "@iconify/vue";
 import { VueDatePicker } from "@vuepic/vue-datepicker";
 import {
   CheckboxIndicator,
   CheckboxRoot,
   CheckboxGroupRoot,
-  SliderRange,
-  SliderRoot,
-  SliderThumb,
-  SliderTrack,
 } from "reka-ui";
 import "@vuepic/vue-datepicker/dist/main.css";
 import FileTable from "./FileTable.vue";
 import type { MapImage } from "../types";
 import { generation } from "../store";
+import { Download } from 'lucide-vue-next'
+import '../style.css'
 
 const props = defineProps<{
   files: MapImage[];
   generatingImage: boolean;
+  selectedImage?: MapImage | null;
 }>();
 const emit = defineEmits<{
   (
@@ -95,9 +94,14 @@ const canGenerate = computed(() => {
   );
 });
 
+
+
 const canDownloadZip = computed(() => {
   return props.files !== null && props.files.length > 0;
 });
+
+
+
 </script>
 
 <template>
@@ -151,7 +155,7 @@ const canDownloadZip = computed(() => {
           >
             <CheckboxRoot
               :value="source.value"
-              class="hover:bg-stone-50 flex h-5 w-5 appearance-none items-center justify-center rounded-md bg-white shadow-sm border border-[#c2c2c2] outline-none"
+              class="hover:bg-stone-50 flex h-5 w-5 appearance-none items-center cursor-pointer justify-center rounded-md bg-white shadow-sm border border-[#c2c2c2] outline-none"
             >
               <CheckboxIndicator
                 class="bg-[#1F57FF] h-full w-full rounded flex items-center justify-center"
@@ -168,74 +172,112 @@ const canDownloadZip = computed(() => {
       </div>
 
       <div class="w-full flex flex-col items-start gap-2">
-        <h3 class="text-black">Frequency</h3>
+        <h3 class="text-black">Accumulation Period</h3>
         <div class="w-full h-[1px] bg-[#c2c2c2]" />
-        <SliderRoot
-          v-model="frequencyIdx"
-          class="relative flex items-center select-none touch-none w-full h-5"
-          :max="frequencyOptions.length - 1"
-          :step="1"
-          :disabled="!(dates && dates.length == 2 && lengthOfInterval > 0)"
-        >
-          <SliderTrack class="bg-stone-500/30 relative grow rounded-full h-2">
-            <SliderRange class="absolute bg-grass8 rounded-full h-full" />
-          </SliderTrack>
-          <SliderThumb
-            class="block w-6 h-6 bg-white rounded-full hover:bg-stone-50 shadow-sm focus:outline-none focus:shadow-[0_0_0_2px] focus:shadow-grass9"
-            aria-label="Volume"
-          />
-        </SliderRoot>
+
+        <div class="flex justify-between w-full">
+          <button
+            v-for="period in [1, 3, 6, 12, 24]"
+            :key="period"
+            type="button"
+            class="flex  items-center gap-2"
+            :disabled="!canGenerate || lengthOfInterval % period !== 0"
+            @click="frequencyIdx = [[1, 3, 6, 12, 24].indexOf(period)]"
+          >
+            <div
+              class="w-5 h-5 rounded-full border-1 border-[#C2C2C2] cursor-pointer shadow-sm peer-checked:border-blue-600 peer-checked:bg-blue-600 transition"
+              :class="[
+                !canGenerate || lengthOfInterval % period !== 0
+                  ? 'border-gray-300 bg-gray-200'
+                  : frequency === period
+                    ? 'border-blue-600 bg-blue-600'
+                    : 'border-gray-500 bg-white'
+              ]"
+            />
+
+            <span
+              class="text-sm"
+              :class="!canGenerate || lengthOfInterval % period !== 0
+                ? 'text-gray-400'
+                : 'text-black'"
+            >
+              {{ period }}h
+            </span>
+          </button>
+        </div>
+
         <div class="flex flex-col items-start">
-          <span> Hours Between: {{ lengthOfInterval }} </span>
-          <span> Value: {{ frequency }} </span>
+          Maps To Generate: {{ frequency ? lengthOfInterval / frequency : "-" }}
         </div>
       </div>
 
-      <div class="w-full h-fit flex flex-col items-center">
+      <div class="w-full flex flex-col items-center gap-2">
+        <div
+          class="w-full overflow-hidden transition-all duration-300 ease-in-out"
+          :class="
+            generatingImage
+              ? 'max-h-16 opacity-100 mb-2'
+              : 'max-h-0 opacity-0 mb-0'
+          "
+        >
+          <div class="flex justify-between text-sm text-gray-600 mb-1">
+            <Transition name="fade-up" mode="out-in">
+              <span :key="generation.status ?? 'unknown'">
+                {{ generation.status }}
+              </span>
+            </Transition>
+            <span class="text-[0.75rem]">
+              {{ generation.status_code !== 4 ? `${generation.progress}%` : "" }}
+            </span>
+          </div>
+
+          <div class="relative h-3 w-full rounded-full bg-gray-200 overflow-hidden">
+            <div
+              class="progress-fill h-full rounded-full bg-blue-600 transition-all duration-300 ease-linear"
+              :style="{ width: `${generation.status_code !== 4 ? generation.progress : 0}%` }"
+            >
+              <div class="progress-shimmer"></div>
+            </div>
+          </div>
+        </div>
+
         <button
-          class="w-full flex items-center justify-center gap-2 text-center text-[0.8rem] text-white font-bold rounded border-none transition hover:brightness-90 hover:cursor-pointer py-0.5 disabled:bg-[#a0a0a0] disabled:cursor-not-allowed disabled:hover:brightness-100 relative overflow-hidden"
-          :class="generatingImage ? 'bg-[#E23B3B]' : 'bg-[#1F57FF]'"
+          class="w-full flex items-center justify-center gap-2 text-center text-[0.8rem] font-bold rounded border-none transition-all duration-300 hover:brightness-90 hover:cursor-pointer py-0.5 disabled:bg-[#a0a0a0] disabled:cursor-not-allowed disabled:hover:brightness-100 relative overflow-hidden"
+          :class="
+            generatingImage
+              ? 'bg-gray-100 text-gray-600 border-3 border-[#C2C2C2]'
+              : 'bg-[#1F57FF] text-white'
+          "
           @click="
             generatingImage
               ? emit('cancelGenerate')
-              : handleGenerateImage(dates, sources, frequency)
+              : handleGenerateImage(dates!, sources, frequency!)
           "
           :disabled="!generatingImage && !canGenerate"
         >
-          <Icon
-            v-if="generatingImage"
-            icon="radix-icons:reload"
-            class="h-4 w-4 animate-spin"
-          />
-          {{ generatingImage ? "Cancel" : "Generate Images" }}
-
-          <div
-            v-if="generatingImage"
-            class="absolute h-full bg-black right-0 opacity-50 transition-[width] duration-300 ease-linear"
-            :style="{ width: 100 - generation.progress + '%' }"
-          />
+          {{ generatingImage ? "Cancel" : "Generate Contour Maps" }}
         </button>
-        <span v-if="generatingImage" class="text-[0.75rem]">{{
-          generation.status
-        }}</span>
       </div>
 
       <div class="w-full flex flex-col items-start gap-2 max-w-inherit">
-        <h3 class="text-black">Last Generated Images</h3>
+        <div class="w-full flex items-center justify-between mb-2">
+          <h3 class="text-black">Latest Generated Contour Maps</h3>
+          <button
+            class="p-1 rounded transition text-gray-500 enabled:hover enabled:hover:cursor-pointer bg-gray-100 enabled:hover:text-blue-600 disabled:cursor-not-allowed disabled:opacity-40"
+            :disabled="!canDownloadZip"
+            @click="emit('downloadZip')"
+            title="Download ZIP"
+          >
+            <Download :size="16" />
+          </button>
+        </div>
         <div class="w-full h-[1px] bg-[#c2c2c2]" />
         <FileTable
           :files="files"
+          :selected-image="selectedImage"
           @image-selected="emit('imageSelected', $event)"
         />
       </div>
-
-      <button
-        class="w-full text-center bg-[#1F57FF] text-[0.8rem] text-white font-bold rounded border-none transition hover:brightness-90 hover:cursor-pointer mb-[20px] sm:mb-0 py-0.5 disabled:bg-[#a0a0a0] disabled:cursor-not-allowed disabled:hover:brightness-100"
-        :disabled="!canDownloadZip"
-        @click="emit('downloadZip')"
-      >
-        Download .zip
-      </button>
     </div>
   </div>
 </template>

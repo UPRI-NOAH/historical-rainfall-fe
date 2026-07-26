@@ -2,7 +2,7 @@
 import { ref, shallowRef } from "vue";
 import HomePage from "./components/HomePage.vue";
 import RainfallForm from "./components/RainfallForm.vue";
-import { loadImages, sleep } from "./utils";
+import { loadImages } from "./utils";
 import { generation } from "./store";
 import { cancelImages } from "./api/client";
 import noahLogo from "./assets/noah-logo-high-res.png";
@@ -43,8 +43,15 @@ async function handleGenerateImage(
     );
     images.value = result.mapImages;
     zipBlob.value = result.zipBlob;
+
+    selectedImage.value =
+      result.mapImages.length > 0 ? result.mapImages[0] : null;
+
   } catch (e) {
-    if (e.name !== "AbortError") throw e; // swallow expected cancellation
+    if (e instanceof Error && e.name === "AbortError") {
+      return;
+    }
+    throw e;
   } finally {
     loading.value = false;
   }
@@ -56,12 +63,12 @@ async function handleCancelGenerateImage() {
   // Snapshot the values we care about BEFORE any await —
   // so a concurrent generate() can't swap them out from under us
   const activeController = controller.value;
-  const activeWorkflowId = generation.workflow_id;
+  const activeTaskId = generation.task_id;
 
   activeController.abort();
 
-  if (activeWorkflowId) {
-    await cancelImages(activeWorkflowId);
+  if (activeTaskId) {
+    await cancelImages(activeTaskId);
   }
 
   loading.value = true;
@@ -84,6 +91,7 @@ function handleDownloadZip() {
   <RainfallForm
     :files="images"
     :generatingImage="loading"
+    :selected-image="selectedImage"
     @image-selected="handleImageSelected"
     @generate-image="handleGenerateImage"
     @cancel-generate="handleCancelGenerateImage"
@@ -92,6 +100,6 @@ function handleDownloadZip() {
   <HomePage :contour="selectedImage" @bounds-change="handleBoundsChange" />
   <img
     :src="noahLogo"
-    class="z-1000 absolute sm:bottom-[1rem] sm:top-auto top-[1rem] left-[1rem] h-[5rem]"
+    class="z-1000 absolute sm:bottom-[1rem] sm:top-auto top-[1rem] left-[1rem] h-[8rem]"
   />
 </template>

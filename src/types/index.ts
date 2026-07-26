@@ -26,8 +26,9 @@ export interface ImageManifest {
   images: ImageManifestEntry[];
 }
 
-export interface WorkflowStatusResponse {
+export interface TaskStatusResponse {
   status: string;
-  timestamp: string; // or number, depending on how workflow.status_at serializes
+  timestamp: string; // or number, depending on how task.status_at serializes
+  status_code: number;
   progress: number; // it's "100" as a string here, not a number
 }

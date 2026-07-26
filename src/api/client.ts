@@ -1,6 +1,7 @@
 import type { Feature, Polygon } from "geojson";
 import { format } from "date-fns";
-import type { WorkflowStatusResponse } from "../types";
+import type { TaskStatusResponse } from "../types";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 // takes in a vueRef that it can update
 export async function generateImages(
@@ -42,7 +43,7 @@ export async function generateImages(
 
   // Start job
   const startResponse = await fetch(
-    "http://localhost:8000/api/rainfall/historical-contours/download/",
+    `${API_BASE_URL}/api/rainfall/historical-contours/download/`,
     {
       method: "POST",
       body: formData,
@@ -54,18 +55,22 @@ export async function generateImages(
     throw new Error("Failed to start generation.");
   }
 
-  const { workflow_id } = (await startResponse.json()) as {
-    workflow_id: string;
+  const { task_id } = (await startResponse.json()) as {
+    task_id: string;
   };
 
-  return workflow_id;
+  return task_id;
 }
 
-export async function retrieveImages(workflow_id: string, signal: AbortSignal) {
+export async function retrieveImages(task_id: string, signal: AbortSignal) {
+  console.log("Polling URL:", `${API_BASE_URL}/api/rainfall/historical-contours/${task_id}/`);
   const statusResponse = await fetch(
-    `http://localhost:8000/api/rainfall/historical-contours/${workflow_id}/`,
+    `${API_BASE_URL}/api/rainfall/historical-contours/${task_id}/`,
     {
       signal: signal,
+      headers: {
+        "ngrok-skip-browser-warning": "true",
+      },
     }
   );
 
@@ -77,17 +82,17 @@ export async function retrieveImages(workflow_id: string, signal: AbortSignal) {
     const blob = await statusResponse.blob();
     return { type: "complete", data: blob };
   } else if (statusResponse.status === 202) {
-    const json: WorkflowStatusResponse = await statusResponse.json();
+    const json: TaskStatusResponse = await statusResponse.json();
     return { type: "pending", data: json };
   } else {
     throw new Error("Generation failed.");
   }
 }
 
-export async function cancelImages(workflow_id: string) {
-  console.log("WORKFLOW ID: ", workflow_id);
+export async function cancelImages(task_id: string) {
+  console.log("TASK ID: ", task_id);
   const response = await fetch(
-    `http://localhost:8000/api/rainfall/historical-contours/${workflow_id}/`,
+    `${API_BASE_URL}/api/rainfall/historical-contours/${task_id}/`,
     {
       method: "DELETE",
     }

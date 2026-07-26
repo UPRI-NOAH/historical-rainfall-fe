@@ -1,8 +1,6 @@
 <script setup lang="ts">
 import {
   watch,
-  defineProps,
-  defineEmits,
   onMounted,
   onBeforeUnmount,
   shallowRef,
@@ -14,6 +12,7 @@ import "leaflet-draw/dist/leaflet.draw.css";
 import "leaflet-draw";
 import proj4 from "proj4";
 window.proj4 = proj4; // Proj4Leaflet expects proj4 as a global
+(globalThis as any).type = true;
 import "proj4leaflet";
 import type { MapImage } from "../types";
 import type { Feature, Polygon } from "geojson";
@@ -31,7 +30,7 @@ const currentOverlay = ref<L.ImageOverlay | null>(null);
 const drawnItems = shallowRef(new L.FeatureGroup());
 
 onMounted(() => {
-  var my_EPSG_4326 = new L.Proj.CRS(
+  var my_EPSG_4326 = new (L as any).Proj.CRS(
     "EPSG:4326",
     "+proj=longlat +datum=WGS84 +no_defs +type=crs",
     {
@@ -62,7 +61,7 @@ onMounted(() => {
   map.value = L.map("map", {
     crs: my_EPSG_4326,
     zoomControl: false,
-  }).setView([2, 2], 2);
+  }).setView([12.8797, 120.7740], 5);
 
   L.tileLayer(
     `https://gibs.earthdata.nasa.gov/wmts/epsg4326/best/BlueMarble_NextGeneration/default/500m/{z}/{y}/{x}.jpg`,
@@ -77,10 +76,10 @@ onMounted(() => {
 
   map.value.addLayer(drawnItems.value);
 
-  const drawControl = new L.Control.Draw({
+  const drawControl = new (L.Control as any).Draw({
     position: "topright",
     draw: {
-      rectangle: false,
+      rectangle: true,
       polygon: true,
       polyline: false,
       circle: false,
@@ -94,20 +93,20 @@ onMounted(() => {
 
   map.value.addControl(drawControl);
 
-  map.value.on(L.Draw.Event.CREATED, (e: any) => {
+  map.value.on((L as any).Draw.Event.CREATED, (e: any) => {
     drawnItems.value.clearLayers();
     drawnItems.value.addLayer(e.layer);
 
     emit("bounds-change", e.layer.toGeoJSON());
   });
 
-  map.value.on(L.Draw.Event.DELETED, () => {
+  map.value.on((L as any).Draw.Event.DELETED, () => {
     if (drawnItems.value.getLayers().length === 0) {
       emit("bounds-change", null);
     }
   });
 
-  map.value.on(L.Draw.Event.EDITED, (e: any) => {
+  map.value.on((L as any).Draw.Event.EDITED, (e: any) => {
     const layer = e.layers.getLayers()[0];
     emit("bounds-change", layer ? layer.toGeoJSON() : null);
   });
@@ -121,7 +120,7 @@ watch(
 
     if (currentOverlay.value) {
       currentOverlay.value.setUrl(newContour.url);
-      currentOverlay.value.setBounds(newContour.boundingPolygon);
+      currentOverlay.value.setBounds(L.latLngBounds(newContour.boundingPolygon));
     } else {
       currentOverlay.value = L.imageOverlay(
         newContour.url,
@@ -140,6 +139,7 @@ onBeforeUnmount(() => {
 
 function handleMapDrop(ev: DragEvent) {
   ev.preventDefault();
+  if (!ev.dataTransfer) return;
   const file = ev.dataTransfer.files[0];
   if (!file) return;
 

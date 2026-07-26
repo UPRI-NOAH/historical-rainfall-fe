@@ -1,7 +1,7 @@
 import { unzip } from "fflate";
 import { generateImages, retrieveImages } from "../api/client";
 import { generation } from "../store";
-import type { ImageManifest, MapImage, WorkflowStatusResponse } from "../types";
+import type { ImageManifest, MapImage, TaskStatusResponse } from "../types";
 import type { Feature, Polygon } from "geojson";
 
 export function unzipToFiles(
@@ -27,11 +27,16 @@ export async function extractImagesFromManifest(
   const manifest: ImageManifest = JSON.parse(manifestText);
 
   return manifest.images.map((entry) => {
-    const fileData = files[entry.name];
+
+    const fileData = files[entry.filename];
+
+    if (!fileData) {
+      throw new Error(`Image not found in ZIP: ${entry.filename}`);
+    }
     const blob = new Blob([fileData], { type: "image/png" });
 
     return {
-      filename: entry.name,
+      filename: entry.filename,
       url: URL.createObjectURL(blob),
       size: blob.size,
       boundingPolygon: manifest.boundingPolygon,
@@ -49,8 +54,9 @@ export async function loadImages(
   frequency: number,
   signal: AbortSignal
 ) {
-  generation.status = "Starting fetch call";
-  const workflow_id = await generateImages(
+  generation.status = ""
+  generation.progress = 0
+  const task_id = await generateImages(
     boundingPolygon,
     startDate,
     endDate,
@@ -59,19 +65,20 @@ export async function loadImages(
     signal
   );
   let zipBlob;
-  generation.workflow_id = workflow_id;
+  generation.task_id = task_id;
   while (true) {
     sleep(500);
 
-    const { type, data } = await retrieveImages(workflow_id, signal);
+    const { type, data } = await retrieveImages(task_id, signal);
 
     if (type == "complete") {
       zipBlob = data as Blob;
       break;
     }
 
-    generation.status = (data as WorkflowStatusResponse).status;
-    generation.progress = (data as WorkflowStatusResponse).progress;
+    generation.status = (data as TaskStatusResponse).status;
+    generation.progress = (data as TaskStatusResponse).progress;
+    generation.status_code = (data as TaskStatusResponse).status_code;
   }
 
   generation.status = "Parsing data";
