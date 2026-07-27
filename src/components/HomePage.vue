@@ -15,14 +15,16 @@ window.proj4 = proj4; // Proj4Leaflet expects proj4 as a global
 (globalThis as any).type = true;
 import "proj4leaflet";
 import type { MapImage } from "../types";
-import type { Feature, Polygon } from "geojson";
+import type { Feature, Polygon, GeoJsonObject } from "geojson";
 
 const props = defineProps<{
   contour: MapImage | null;
+  uploadedGeometry: GeoJsonObject | null;
 }>();
 
 const emit = defineEmits<{
-  (e: "bounds-change", bounds: Feature<Polygon> | null): void;
+  (e: "bounds-change", bounds: Feature<Polygon> | null, drawn: boolean): void;
+  (e: "clear-upload"): void;
 }>();
 
 const map = shallowRef<L.Map>();
@@ -97,18 +99,20 @@ onMounted(() => {
     drawnItems.value.clearLayers();
     drawnItems.value.addLayer(e.layer);
 
-    emit("bounds-change", e.layer.toGeoJSON());
+    emit("clear-upload");
+    emit("bounds-change", e.layer.toGeoJSON(), true);
   });
 
   map.value.on((L as any).Draw.Event.DELETED, () => {
     if (drawnItems.value.getLayers().length === 0) {
-      emit("bounds-change", null);
+      emit("bounds-change", null, false);
     }
+    emit("clear-upload");
   });
 
   map.value.on((L as any).Draw.Event.EDITED, (e: any) => {
     const layer = e.layers.getLayers()[0];
-    emit("bounds-change", layer ? layer.toGeoJSON() : null);
+    emit("bounds-change", layer ? layer.toGeoJSON() : null, true);
   });
 });
 
@@ -133,71 +137,53 @@ watch(
   }
 );
 
+watch(
+    () => props.uploadedGeometry,
+    (geometry) => {
+        if (!geometry || !map.value) return;
+
+        previewGeoJSON(geometry);
+    }
+);
+
+function previewGeoJSON(geometry: GeoJsonObject) {
+    if (!map.value) return;
+    drawnItems.value.clearLayers();
+    const geoJsonLayer = L.geoJSON(geometry, {
+            style: {
+                color: "#3388ff",
+                weight: 3,
+                fillOpacity: 0.2,
+            },
+        });
+
+    geoJsonLayer.eachLayer((layer) => {
+        drawnItems.value.addLayer(layer);
+    });
+
+    map.value.fitBounds(geoJsonLayer.getBounds());
+
+    const layer = drawnItems.value.getLayers()[0];
+
+    if (layer instanceof L.Polygon) {
+        emit(
+            "bounds-change",
+            layer.toGeoJSON() as Feature<Polygon>,
+            false
+        );
+    }
+  }
+
 onBeforeUnmount(() => {
   map.value?.remove();
 });
 
-function handleMapDrop(ev: DragEvent) {
-  ev.preventDefault();
-  if (!ev.dataTransfer) return;
-  const file = ev.dataTransfer.files[0];
-  if (!file) return;
 
-  const isGeoJSON =
-    file.name.toLowerCase().endsWith(".geojson") ||
-    file.name.toLowerCase().endsWith(".json") ||
-    file.type === "application/geo+json" ||
-    file.type === "application/json";
-
-  if (!isGeoJSON) {
-    console.warn(
-      "Not recognized as GeoJSON by name/type, will still try to parse"
-    );
-  }
-
-  const reader = new FileReader();
-  reader.onload = (event) => {
-    try {
-      const data = JSON.parse(event.target?.result as string);
-      const geoJsonLayer = L.geoJSON(data, {
-        style: {
-          color: "#3388ff",
-          weight: 4,
-          opacity: 0.5,
-          fillColor: "#3388ff",
-          fillOpacity: 0.2,
-        },
-      });
-
-      const layers = geoJsonLayer.getLayers();
-      if (layers.length === 0) {
-        console.error("No valid geometry found in file");
-        return;
-      }
-
-      drawnItems.value.clearLayers();
-
-      const layer = layers[0] as L.Polygon;
-
-      const geoJson = layer.toGeoJSON();
-      if (geoJson.geometry.type === "Polygon") {
-        drawnItems.value.addLayer(layer);
-        emit("bounds-change", geoJson as GeoJSON.Feature<GeoJSON.Polygon>);
-      } else {
-        console.warn("Please only pass a Polygon in the GeoJSON.");
-      }
-    } catch (err) {
-      console.error("Failed to parse as GeoJSON:", err);
-    }
-  };
-  reader.readAsText(file);
-}
 </script>
 
 <template>
   <div
     id="map"
-    @drop="handleMapDrop"
     @dragover.prevent
     @dragenter.prevent
   ></div>

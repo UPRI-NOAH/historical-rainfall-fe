@@ -14,14 +14,19 @@ const zipBlob = shallowRef<Blob | null>(null);
 const controller = shallowRef<AbortController>();
 const selectedImage = ref<null | MapImage>(null);
 const loading = ref(false);
+const uploadedGeoJSON = ref<File | null>(null);
+const uploadedGeometry = ref<GeoJSON.GeoJsonObject | null>(null);
 const boundingPolygon = ref<Feature<Polygon> | null>(null);
+const drawActive = ref(false);
 
 function handleImageSelected(image: MapImage) {
   selectedImage.value = image;
 }
 
-function handleBoundsChange(val: Feature<Polygon> | null) {
+function handleBoundsChange(val: Feature<Polygon> | null, drawn: boolean) {
   boundingPolygon.value = val;
+  drawActive.value = drawn
+  console.log(boundingPolygon.value);
 }
 
 async function handleGenerateImage(
@@ -35,6 +40,7 @@ async function handleGenerateImage(
   try {
     const result = await loadImages(
       boundingPolygon.value,
+      uploadedGeoJSON.value,
       startDate,
       endDate,
       sources,
@@ -85,19 +91,61 @@ function handleDownloadZip() {
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
+
+function handleGeoJSONUpload(
+    file: File,
+    geometry: GeoJSON.GeoJsonObject
+) {
+    uploadedGeoJSON.value = file;
+    uploadedGeometry.value = geometry;
+    boundingPolygon.value = null;
+    console.log(boundingPolygon.value);
+}
+
+function handleDownloadBoundingBox() {
+    if (!boundingPolygon.value) return;
+
+    const blob = new Blob(
+        [JSON.stringify(boundingPolygon.value, null, 2)],
+        { type: "application/geo+json" }
+    );
+
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "bounding_box.geojson";
+    a.click();
+
+    URL.revokeObjectURL(url);
+}
+
+function handleClearUpload() {
+    uploadedGeoJSON.value = null;
+    uploadedGeometry.value = null;
+}
+
 </script>
 
 <template>
   <RainfallForm
     :files="images"
-    :generatingImage="loading"
+    :generating-image="loading"
     :selected-image="selectedImage"
+    :uploaded-geo-j-s-o-n="uploadedGeoJSON"
+    :draw-active="drawActive"
     @image-selected="handleImageSelected"
     @generate-image="handleGenerateImage"
     @cancel-generate="handleCancelGenerateImage"
     @download-zip="handleDownloadZip"
+    @geojson-upload="handleGeoJSONUpload"
+    @download-bbox="handleDownloadBoundingBox"
   />
-  <HomePage :contour="selectedImage" @bounds-change="handleBoundsChange" />
+  <HomePage
+    :contour="selectedImage"
+    :uploaded-geometry="uploadedGeometry"
+    @bounds-change="handleBoundsChange"
+    @clear-upload="handleClearUpload" />
   <img
     :src="noahLogo"
     class="z-1000 absolute sm:bottom-[1rem] sm:top-auto top-[1rem] left-[1rem] h-[8rem]"

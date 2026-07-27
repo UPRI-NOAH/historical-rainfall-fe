@@ -17,9 +17,12 @@ import '../style.css'
 const props = defineProps<{
   files: MapImage[];
   generatingImage: boolean;
-  selectedImage?: MapImage | null;
+  selectedImage: MapImage | null;
+  uploadedGeoJSON: File | null;
+  drawActive: boolean;
 }>();
 const emit = defineEmits<{
+  (e: "imageSelected", image: MapImage): void;
   (
     e: "generateImage",
     startDate: Date,
@@ -27,15 +30,21 @@ const emit = defineEmits<{
     sources: string[],
     frequency: number
   ): void;
-  (e: "imageSelected", image: MapImage): void;
   (e: "cancelGenerate"): void;
   (e: "downloadZip"): void;
+  (
+    e: "geojsonUpload",
+    file: File, 
+    geometry: GeoJSON.GeoJsonObject
+  ): void;
+    (e: "downloadBbox"): void;
 }>();
 
 const dates = ref<Date[]>();
 const sources = ref<string[]>([]);
 const frequencyIdx = ref<number[]>([0]);
 const expanded = ref<boolean>(false); // mobile bottom-sheet open/closed state
+
 
 function handleGenerateImage(
   dates: Date[],
@@ -46,6 +55,16 @@ function handleGenerateImage(
   const endDate = dates[1];
   console.log("FREQ: ", frequency);
   emit("generateImage", startDate, endDate, sources, frequency);
+}
+
+async function handleGeoJSONUpload(event: Event) {
+    const input = event.target as HTMLInputElement;
+    if (!input.files?.length) return;
+    const file = input.files[0];
+
+    const text = await file.text();
+    const geometry = JSON.parse(text);
+    emit("geojsonUpload", file, geometry);
 }
 
 const lengthOfInterval = computed(() => {
@@ -90,7 +109,11 @@ const canGenerate = computed(() => {
     dates.value[0] &&
     dates.value[1] &&
     sources.value.length > 0 &&
-    frequency.value
+    frequency.value &&
+    (
+      props.drawActive ||
+      props.uploadedGeoJSON
+    )
   );
 });
 
@@ -139,6 +162,57 @@ const canDownloadZip = computed(() => {
       </div>
 
       <div class="w-full flex flex-col items-start gap-2">
+        <div class="w-full flex items-center justify-between mb-2">
+          <h3 class="text-black">Area</h3>
+          <button class="p-1 rounded transition text-gray-500 enabled:hover enabled:hover:cursor-pointer bg-gray-100 enabled:hover:text-blue-600 disabled:cursor-not-allowed disabled:opacity-40"
+          title="Export drawing as .geojson"  
+          :disabled="!drawActive"
+            @click="$emit('downloadBbox')">
+              <Icon icon="mdi:file-export-outline" class="w-5 h-5"/>
+          </button>
+        </div>
+        <div class="w-full h-[1px] bg-[#c2c2c2]" />
+        <div
+          class="group relative flex w-full cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-[#D7DCE5] bg-[#FAFBFC] py-4 transition-all duration-200 hover:border-[#1F57FF] hover:bg-[#F6F9FF]"
+        >
+          <input
+            type="file"
+            accept=".geojson,.json,application/geo+json"
+            class="absolute inset-0 cursor-pointer opacity-0"
+            @change="handleGeoJSONUpload"
+          />
+
+          <!-- Upload Icon -->
+          <template v-if="!uploadedGeoJSON">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              class="mb-1 h-5 w-5 text-[#8B95A7] transition-colors group-hover:text-[#1F57FF]"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              stroke-width="1.8"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M12 16V4m0 0l-4 4m4-4l4 4M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2"
+              />
+            </svg>
+            <p class="mt-1 text-center text-xs text-[#7D8795]">
+              Drag & drop your .geojson here
+              <br />
+              or <span class="font-medium text-[#1F57FF]">draw on the map</span>
+            </p>
+          </template>
+            
+          <template v-else>
+            <Icon icon="lucide:file-json" class="size-6 text-blue-600" />
+            <p class="text-center font-medium text-s text-[#1F57FF]">{{ uploadedGeoJSON.name }}</p>
+          </template>
+        </div>
+      </div>
+
+      <div class="w-full flex flex-col items-start gap-2">
         <h3 class="text-black">Sources</h3>
         <div class="w-full h-[1px] bg-[#c2c2c2]" />
         <CheckboxGroupRoot
@@ -181,13 +255,13 @@ const canDownloadZip = computed(() => {
             :key="period"
             type="button"
             class="flex  items-center gap-2"
-            :disabled="!canGenerate || lengthOfInterval % period !== 0"
+            :disabled=" lengthOfInterval % period !== 0"
             @click="frequencyIdx = [[1, 3, 6, 12, 24].indexOf(period)]"
           >
             <div
               class="w-5 h-5 rounded-full border-1 border-[#C2C2C2] cursor-pointer shadow-sm peer-checked:border-blue-600 peer-checked:bg-blue-600 transition"
               :class="[
-                !canGenerate || lengthOfInterval % period !== 0
+                 lengthOfInterval % period !== 0
                   ? 'border-gray-300 bg-gray-200'
                   : frequency === period
                     ? 'border-blue-600 bg-blue-600'
@@ -197,7 +271,7 @@ const canDownloadZip = computed(() => {
 
             <span
               class="text-sm"
-              :class="!canGenerate || lengthOfInterval % period !== 0
+              :class=" lengthOfInterval % period !== 0
                 ? 'text-gray-400'
                 : 'text-black'"
             >
@@ -210,6 +284,7 @@ const canDownloadZip = computed(() => {
           Maps To Generate: {{ frequency ? lengthOfInterval / frequency : "-" }}
         </div>
       </div>
+
 
       <div class="w-full flex flex-col items-center gap-2">
         <div

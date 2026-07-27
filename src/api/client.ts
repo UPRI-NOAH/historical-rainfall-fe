@@ -6,6 +6,7 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 // takes in a vueRef that it can update
 export async function generateImages(
   boundingPolygon: Feature<Polygon> | null,
+  uploadedGeoJSON: File | null,
   startDate: Date,
   endDate: Date,
   sources: string[],
@@ -26,8 +27,9 @@ export async function generateImages(
 
   const formData = new FormData();
 
-  if (boundingPolygon !== null) {
-    console.log(boundingPolygon);
+  if (uploadedGeoJSON) {
+    formData.append("bbox", uploadedGeoJSON);
+  } else if (boundingPolygon) {
     formData.append(
       "bbox",
       new File([JSON.stringify(boundingPolygon)], "polygon.geojson", {

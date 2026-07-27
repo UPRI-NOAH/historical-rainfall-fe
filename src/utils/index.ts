@@ -48,6 +48,7 @@ export async function extractImagesFromManifest(
 
 export async function loadImages(
   boundingPolygon: Feature<Polygon> | null,
+  uploadedGeoJSON: File | null,
   startDate: Date,
   endDate: Date,
   sources: string[],
@@ -58,6 +59,7 @@ export async function loadImages(
   generation.progress = 0
   const task_id = await generateImages(
     boundingPolygon,
+    uploadedGeoJSON,
     startDate,
     endDate,
     sources,
