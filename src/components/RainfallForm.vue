@@ -2,6 +2,7 @@
 import { ref, computed } from "vue";
 import { Icon } from "@iconify/vue";
 import { VueDatePicker } from "@vuepic/vue-datepicker";
+import shp from "shpjs";
 import {
   CheckboxIndicator,
   CheckboxRoot,
@@ -58,13 +59,42 @@ function handleGenerateImage(
 }
 
 async function handleGeoJSONUpload(event: Event) {
-    const input = event.target as HTMLInputElement;
-    if (!input.files?.length) return;
-    const file = input.files[0];
+  const input = event.target as HTMLInputElement;
+  if (!input.files?.length) return;
+  const file = input.files[0];
 
-    const text = await file.text();
-    const geometry = JSON.parse(text);
-    emit("geojsonUpload", file, geometry);
+  let geometry: GeoJSON.GeoJsonObject;
+  let fileToEmit: File = file;
+
+  try {
+    if (file.name.toLowerCase().endsWith(".zip")) {
+      // shapefile bundle -> convert to GeoJSON
+      const buffer = await file.arrayBuffer();
+      const result = await shp(buffer);
+
+      // shp() returns an array if the zip has multiple layers — merge into one FeatureCollection
+      geometry = Array.isArray(result)
+        ? ({
+            type: "FeatureCollection",
+            features: result.flatMap((fc: any) => fc.features),
+          } as GeoJSON.GeoJsonObject)
+        : result;
+
+      // Repackage as a .geojson File so everything downstream (map, backend upload)
+      // treats it exactly like a normal GeoJSON upload
+      const blob = new Blob([JSON.stringify(geometry)], { type: "application/geo+json" });
+      fileToEmit = new File([blob], file.name.replace(/\.zip$/i, ".geojson"), {
+        type: "application/geo+json",
+      });
+    } else {
+      const text = await file.text();
+      geometry = JSON.parse(text);
+    }
+
+    emit("geojsonUpload", fileToEmit, geometry);
+  } catch (err) {
+    console.error("Failed to parse uploaded file:", err);
+  }
 }
 
 const lengthOfInterval = computed(() => {
@@ -177,7 +207,7 @@ const canDownloadZip = computed(() => {
         >
           <input
             type="file"
-            accept=".geojson,.json,application/geo+json"
+            accept=".geojson,.json,application/geo+json,.zip,application/zip"
             class="absolute inset-0 cursor-pointer opacity-0"
             @change="handleGeoJSONUpload"
           />
