@@ -1,7 +1,7 @@
 import type { Feature, Polygon } from "geojson";
 import { format } from "date-fns";
 import type { TaskStatusResponse } from "../types";
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL.replace(/\/+$/, "");
 
 // takes in a vueRef that it can update
 export async function generateImages(
