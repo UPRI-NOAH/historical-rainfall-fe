@@ -3,6 +3,7 @@ import tailwindcss from "@tailwindcss/vite";
 
 // https://vite.dev/config/
 export default {
+  base: process.env.VITE_BASE_PATH ?? "/historiccal-rainfall-fe/",
   content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
   theme: {
     extend: {},
