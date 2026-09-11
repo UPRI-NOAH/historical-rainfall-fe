@@ -45,6 +45,7 @@ const dates = ref<Date[]>();
 const sources = ref<string[]>([]);
 const frequencyIdx = ref<number[]>([0]);
 const expanded = ref<boolean>(false); // mobile bottom-sheet open/closed state
+const dpKey = ref(0); // bump to force VueDatePicker remount after close
 
 
 function handleGenerateImage(
@@ -187,7 +188,15 @@ const canDownloadZip = computed(() => {
         <h3 class="text-black">Date & Time</h3>
         <div class="w-full h-[1px] bg-[#c2c2c2]" />
         <div class="w-full datepicker">
-          <VueDatePicker v-model="dates" class="dp" range />
+          <VueDatePicker
+            :key="dpKey"
+            v-model="dates"
+            class="dp"
+            range
+            :partial-range="false"
+            @cleared="dates = undefined"
+            @closed="dpKey++"
+          />
         </div>
       </div>
 
