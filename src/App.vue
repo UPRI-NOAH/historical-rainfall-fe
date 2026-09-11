@@ -148,6 +148,6 @@ function handleClearUpload() {
     @clear-upload="handleClearUpload" />
   <img
     :src="noahLogo"
-    class="z-1000 absolute sm:bottom-[1rem] sm:top-auto top-[1rem] left-[1rem] h-[8rem]"
+    class="z-1000 fixed sm:bottom-[1rem] sm:top-auto sm:left-auto sm:right-[1rem] top-[1rem] left-[1rem] h-[min(8rem,15vh)]"
   />
 </template>
